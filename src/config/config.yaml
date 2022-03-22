@@ -19,19 +19,19 @@ hydra:
         class: logging.FileHandler
         formatter: simple
         filename: ${hydra.job.name}.log
-      root:
-        level: INFO
-        handlers: [console, file]
-      disable_existing_loggers: False
+    root:
+      level: INFO
+      handlers: [console, file]
+    disable_existing_loggers: False
   sweep:
     dir: .hydra/multirun/${now:%Y-%m-%d}/${now:H%-%M-%S}
     subdir: trial_${hydra.job.num}
   sweeper:
     study_name: lgbm
     storage: null
-  sampler:
-    seed: 47
-    n_trials: 100
+    sampler:
+      seed: 47
+    n_trials: 5
     n_jobs: 1
     direction: maximize
     search_space:
@@ -47,17 +47,19 @@ hydra:
 
 common:
   seed: 47
-  fild: 5
+  fold: 5
   test_size: 0.3
 
 mlflow:
   dir: data/mlflow
-  experiment_name: LT用Train
+  experiment_name: LT用Train - Optuna
   tags:
     experiment_memo: LT用の使い捨て実験。あとで消します
+    mlflow.user: cn47
+
 
 data:
-  train: data/train/train.libsvm
+  train: data/01_raw/train.csv
 
 model:
   callbacks:
@@ -69,7 +71,7 @@ model:
     boosting_type: gbdt
     importance_type: stplit
     is_unbalance: True
-    min_childweight: 1e-3
+    min_child_weight: 1e-3
     min_split_gain: 0.0
     n_estimators: 1000
     n_jobs: -1
@@ -87,7 +89,7 @@ model:
     reg_alpha: 1e-4
     reg_lambda: 1e-4
     subsample_freq: 0
-    sabsample: 1.0
+    subsample: 1.0
 
 metrics:
   - average_precision
