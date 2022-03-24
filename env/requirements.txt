@@ -1,0 +1,11 @@
+hydra-core
+hydra-optuna-sweeper
+lightgbm
+matplotlib
+mlflow
+numpy
+optuna
+pyyaml
+scikit-learn
+
+ipython
