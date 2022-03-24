@@ -1,4 +1,4 @@
-実験管理コード
+# 実験管理コード
 
 ## つかいかた
 ### 環境構築について
@@ -25,7 +25,7 @@ http://localhost:5000/
 ./src/run_example.shの中にterminalからの実行例を記載しています  
 ※ dockerを使わない場合は直接python3コマンドを打ってください  
 また、docker非利用者はtrain.py(train_hydra.py)のpj_dir変数を  
-./opt -> `レポジトリディレクトリTop`に書き換えてください  
+`./opt -> RepositoryのTop directory`に書き換えてください  
 
 
 
