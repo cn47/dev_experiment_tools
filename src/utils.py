@@ -1,7 +1,7 @@
 import shutil
+from contextlib import contextmanager
 from datetime import datetime
 from multiprocessing import Pool
-from contextlib import contextmanager
 
 
 def rm_files(target_file: str) -> None:

@@ -35,46 +35,46 @@ hydra:
     n_jobs: 1
     direction: maximize
     search_space:
-      model.search_params.colsample_bytree:
+      model.train_params.colsample_bytree:
         type: float
         low:  0.4
         high: 1.0
-      model.search_params.learning_rate:
+      model.train_params.learning_rate:
         type: float
         log: True
         low: 1e-2
         high: 1.0
-      model.search_params.max_bin:
+      model.train_params.max_bin:
         type: int
         low: 100
         high: 400
-      model.search_params.max_depth:
+      model.train_params.max_depth:
         type: int
         low: 3
         high: 21
-      model.search_params.min_child_samples:
+      model.train_params.min_child_samples:
         type: int
         low: 0
         high: 25
-      model.search_params.num_leaves:
+      model.train_params.num_leaves:
         type: int
         low: 10
         high: 1000
-      model.search_params.reg_alpha:
-        type: float
-        log: True
-        low: 1-e4
-        high: 0.1
-      model.search_params.reg_lambda:
+      model.train_params.reg_alpha:
         type: float
         log: True
         low: 1e-4
         high: 0.1
-      model.search_params.subsample_freq:
+      model.train_params.reg_lambda:
+        type: float
+        log: True
+        low: 1e-4
+        high: 0.1
+      model.train_params.subsample_freq:
         type: int
         low: 0
         high: 10
-      model.search_params.subsample:
+      model.train_params.subsample:
         type: float
         low: 0.4
         high: 1.0
@@ -100,7 +100,8 @@ model:
   callbacks:
     metric: average_precision
     early_stopping_rounds: 50
-  fixed_params:
+  train_params:
+    # ---- fixed_params ----
     metric: average_precision
     force_col_wise: True
     boosting_type: gbdt
@@ -114,7 +115,7 @@ model:
     silent: True
     subsample_for_bin: 200000
     verbosity: -1
-  search_params:
+    # ---- search_params ----
     colsample_bytree: 1.0
     learning_rate: 0.1
     max_bin: 255

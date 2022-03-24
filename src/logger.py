@@ -2,7 +2,6 @@ from logging import getLogger
 from logging.config import dictConfig
 from pathlib import Path
 
-
 ### logger
 LOGGER_CONF = {
     'version': 1,

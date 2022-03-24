@@ -32,10 +32,10 @@ docker-compose run --rm python_dev_experiment \
 # grid search
 docker-compose run --rm python_dev_experiment \
   python3 src/train.py -m \
-  'model.search_params.learning_rate=choice(0.01,0.1)' \
-  'model.search_params.max_depth=choice(3,6)'
+  'model.train_params.learning_rate=choice(0.01,0.1)' \
+  'model.train_params.max_depth=choice(3,6)'
 
 
 # bayesian search(configのsweeper uncommentoutする)
 docker-compose run --rm python_dev_experiment \
-  python3 src/train.py -m \
+  python3 src/train.py -m

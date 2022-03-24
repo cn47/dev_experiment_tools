@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from pprint import pformat
+
 import hydra
 import lightgbm as lgb
 import matplotlib.pyplot as plt
@@ -11,11 +12,9 @@ import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
 from omegaconf import DictConfig, OmegaConf
-from sklearn.model_selection import (
-    StratifiedKFold,
-    cross_validate,
-    train_test_split
-)
+from sklearn.model_selection import (StratifiedKFold, cross_validate,
+                                     train_test_split)
+
 from logger import get_logger
 from mlflow_writer import MlflowWriter
 from utils import rm_files, timer
@@ -66,7 +65,7 @@ def optimizer(config: DictConfig) -> np.float64:
     )
 
     model = LGBMClassifier(random_state=config.common.seed)
-    hyperparams = {**config.model.fixed_params, **config.model.search_params}
+    hyperparams = {**config.model.train_params}
     model.set_params(**hyperparams)
 
     fit_params = {
