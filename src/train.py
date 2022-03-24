@@ -4,24 +4,21 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from pprint import pformat
-
 import hydra
 import lightgbm as lgb
 import matplotlib.pyplot as plt
 import numpy as np
-from lightgbm import LGBMClassifier
-from omegaconf import DictConfig, ListConfig, OmegaConf
-from sklearn.datasets import load_svmlight_file
-from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
 import pandas as pd
-
+from lightgbm import LGBMClassifier
+from omegaconf import DictConfig, OmegaConf
+from sklearn.model_selection import (
+    StratifiedKFold,
+    cross_validate,
+    train_test_split
+)
 from logger import get_logger
-from utils import rm_files, timer
 from mlflow_writer import MlflowWriter
-
-#from mlflow.tracking import MlflowClient
-#from mlflow.utils.mlflow_tags import MLFLOW_RUN_NAME
-
+from utils import rm_files, timer
 
 pj_dir = Path('/opt')
 config = OmegaConf.load(f"{pj_dir}/src/config/config.yaml")
@@ -36,17 +33,20 @@ logger = get_logger("TrainOptimizer", f"{pj_dir}/log/train.log")
 
 ### Define Process #############################################################
 def main():
-    with timer('Load Data'):
+    with timer('Load&Preprocess Data'):
         global X, y
         df_raw = pd.read_csv(pj_dir / "data/01_raw/train.csv")
         df_proc = preprocess(df_raw)
         X, y = df_proc.drop('Survived', axis=1), df_proc['Survived']
         positive = np.count_nonzero(y)
         negative = len(y) - np.count_nonzero(y)
-        logger.info(f'positive: {positive} / negative: {negative)}')
+        logger.info(f'positive: {positive} / negative: {negative}')
 
     with timer('CrossValidHyperParamOptimizer'):
         optimizer()
+
+    with timer('TrainBestModel', logger):
+        train_by_best_params()
 
 ### Define Function ############################################################
 def preprocess(df: pd.DataFrame) -> pd.DataFrame:
@@ -60,9 +60,8 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
 
     return _df
 
-
 @hydra.main(config_path=f"{pj_dir}/src/config", config_name="config")
-def optimizer(config):
+def optimizer(config: DictConfig) -> np.float64:
     cv = StratifiedKFold(
         n_splits=config.common.fold,
         shuffle=True,
@@ -101,7 +100,7 @@ def optimizer(config):
         trial_num = int(current_dir.stem.split("_")[1])
         mlflow_run_name = f"SweepTrial{trial_num:03}"
     else:
-        mlflow_run_name = f"ShotTrial"
+        mlflow_run_name = "ShotTrial"
 
     tags = {
         "RunAt": f"{datetime.now():%Y-%m-%d-%H-%M-%S}",
@@ -131,6 +130,94 @@ def optimizer(config):
     return np.mean(scores["test_average_precision"])
 
 
+def train_by_best_params() -> None:
+
+    rm_files(mlflow_dir / "_tmp")
+    (mlflow_dir / "_tmp").mkdir(parents=True, exist_ok=True)
+
+    hyperparams = {**config.model.fixed_params, **config.model.search_params}
+
+    optimization_results_file = hydra_dir / "optimization_results.yaml"
+    if optimization_results_file.exists():
+        searched_params = OmegaConf.load(optimization_results_file)
+        searched_params = {
+            k.replace("model.search_params.", ""): v for k, v in searched_params.best_params.items()
+        }
+
+    logger.info("fit_params:")
+    logger.info(pformat(hyperparams))
+
+    (X_train, X_valid,
+     y_train, y_valid,) = train_test_split(
+         X, y,
+         test_size=config.common.test_size, random_state=config.common.seed,
+         shuffle=True, stratify=y
+     )
+
+    lgb_train = lgb.Dataset(X_train, y_train)
+    lgb_valid = lgb.Dataset(X_valid, y_valid)
+
+    callbacks = [
+        lgb.early_stopping(stopping_rounds=config.model.callbacks.early_stopping_rounds, verbose=True),
+        lgb.log_evaluation(10),
+    ]
+
+    evals_result = {}
+
+    model = lgb.train(
+        hyperparams,
+        lgb_train,
+        valid_sets=[lgb_train, lgb_valid],
+        valid_names=["Train", "Eval"],
+        evals_result=evals_result,
+        callbacks=callbacks,
+    )
+
+    logger.info("Train Done")
+
+    plt.style.use("seaborn-pastel")
+    fig = plt.figure()
+
+    ax = lgb.plot_metric(evals_result, grid=False)
+    plt.savefig(f"{mlflow_dir}/_tmp/LearningCurve.png", bbox_inches="tight", pad_inches=0.05)
+
+    ax = lgb.plot_importance(model, max_num_features=5, grid=False)
+    plt.savefig(f"{mlflow_dir}/_tmp/FeatureImportance5.png", bbox_inches="tight", pad_inches=0.05)
+
+    with open(f"{mlflow_dir}/_tmp/lgbm_optimized.pkl", "wb") as fp:
+        pickle.dump(model, fp)
+
+    writer = MlflowWriter(
+        experiment_name=config.mlflow.experiment_name,
+        tracking_uri=f"file://{mlflow_dir}/mlruns",
+    )
+
+    tags = {
+        "RunAt": f"{datetime.now():%Y-%m-%d-%H-%M-%S}",
+        "mlflow.runName": "TrainOptimizedModel",
+    }
+
+    if config.mlflow.get("tags"):
+        tags.update(config.mlflow.tags)
+
+    writer.set_tags(tags)
+
+    writer.log_params_from_omegaconf_dict(hyperparams)
+
+    writer.log_param("best_iteration", model.best_iteration)
+    writer.log_param("X_train_shape", str(X_train.shape))
+    writer.log_param("y_train_shape", round(np.mean(y_train), 3))
+    writer.log_param("X_valid_shape", str(X_valid.shape))
+    writer.log_param("y_valid_shape", round(np.mean(y_valid), 3))
+
+    writer.log_metric("BestScore_train", list(model.best_score["Train"].values())[0])
+    writer.log_metric("BestScore_valid", list(model.best_score["Eval"].values())[0])
+
+    writer.log_artifact(f"{mlflow_dir}/_tmp/lgbm_optimized.pkl")
+    writer.log_artifact(f"{mlflow_dir}/_tmp/LearningCurve.png")
+    writer.log_artifact(f"{mlflow_dir}/_tmp/FeatureImportance5.png")
+
+    writer.set_terminated()
 
 ### Execute Process ############################################################
 if __name__ == '__main__':

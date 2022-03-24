@@ -2,7 +2,6 @@ from mlflow.tracking import MlflowClient
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
 
-
 class MlflowWriter:
     def __init__(self, experiment_name, **kwargs):
         self.client = MlflowClient(**kwargs)
@@ -35,7 +34,7 @@ class MlflowWriter:
             self.client.log_param(self.run_id, parent_name, element)
 
     def log_param(self, key, value):
-        self.client.log_params(self.run_id, key, value)
+        self.client.log_param(self.run_id, key, value)
 
     def log_metric(self, key, value):
         self.client.log_metric(self.run_id, key, value)

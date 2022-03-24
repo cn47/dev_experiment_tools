@@ -1,6 +1,6 @@
-defaults:
-  - override hydra/sweeper: optuna
-  - override hydra/sweeper/sampler: tpe
+# defaults:
+#   - override hydra/sweeper: optuna
+#   - override hydra/sweeper/sampler: tpe
 
 hydra:
   run:
@@ -26,24 +26,59 @@ hydra:
   sweep:
     dir: .hydra/multirun/${now:%Y-%m-%d}/${now:H%-%M-%S}
     subdir: trial_${hydra.job.num}
-  sweeper:
-    study_name: lgbm
-    storage: null
-    sampler:
-      seed: 47
-    n_trials: 5
-    n_jobs: 1
-    direction: maximize
-    search_space:
-      model.search_params.learning_rate:
-        type: float
-        log: True
-        low: 1e-2
-        high: 1.0
-      model.search_params.max_depth:
-        type: int
-        low: 3
-        high: 21
+  # sweeper:
+  #   study_name: lgbm
+  #   storage: null
+  #   sampler:
+  #     seed: 47
+  #   n_trials: 10
+  #   n_jobs: 1
+  #   direction: maximize
+  #   search_space:
+  #     model.search_params.colsample_bytree:
+  #       type: float
+  #       low:  0.4
+  #       high: 1.0
+  #     model.search_params.learning_rate:
+  #       type: float
+  #       log: True
+  #       low: 1e-2
+  #       high: 1.0
+  #     model.search_params.max_bin:
+  #       type: int
+  #       low: 100
+  #       high: 400
+  #     model.search_params.max_depth:
+  #       type: int
+  #       low: 3
+  #       high: 21
+  #     model.search_params.min_child_samples:
+  #       type: int
+  #       low: 0
+  #       high: 25
+  #     model.search_params.num_leaves:
+  #       type: int
+  #       low: 10
+  #       high: 1000
+  #     model.search_params.reg_alpha:
+  #       type: float
+  #       log: True
+  #       low: 1-e4
+  #       high: 0.1
+  #     model.search_params.reg_lambda:
+  #       type: float
+  #       log: True
+  #       low: 1e-4
+  #       high: 0.1
+  #     model.search_params.subsample_freq:
+  #       type: int
+  #       low: 0
+  #       high: 10
+  #     model.search_params.subsample:
+  #       type: float
+  #       low: 0.4
+  #       high: 1.0
+
 
 common:
   seed: 47
