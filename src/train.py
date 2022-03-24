@@ -11,15 +11,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
-from omegaconf import DictConfig, OmegaConf
-from sklearn.model_selection import (StratifiedKFold, cross_validate,
-                                     train_test_split)
-
 from logger import get_logger
 from mlflow_writer import MlflowWriter
+from omegaconf import DictConfig, OmegaConf
+from sklearn.model_selection import (
+    StratifiedKFold,
+    cross_validate,
+    train_test_split
+)
 from utils import rm_files, timer
 
-pj_dir = Path('/opt')
+pj_dir = Path("/opt")
 config = OmegaConf.load(f"{pj_dir}/src/config/config.yaml")
 
 mlflow_dir = pj_dir / config.mlflow.dir
@@ -32,32 +34,38 @@ logger = get_logger("TrainOptimizer", f"{pj_dir}/log/train.log")
 
 ### Define Process #############################################################
 def main():
-    with timer('Load&Preprocess Data'):
+    with timer("Load&Preprocess Data"):
         global X, y
         df_raw = pd.read_csv(pj_dir / "data/01_raw/train.csv")
         df_proc = preprocess(df_raw)
-        X, y = df_proc.drop('Survived', axis=1), df_proc['Survived']
+        X, y = df_proc.drop("Survived", axis=1), df_proc["Survived"]
         positive = np.count_nonzero(y)
         negative = len(y) - np.count_nonzero(y)
-        logger.info(f'positive: {positive} / negative: {negative}')
+        logger.info(f"positive: {positive} / negative: {negative}")
 
-    with timer('CrossValidHyperParamOptimizer'):
+    with timer("CrossValidHyperParamOptimizer"):
         optimizer()
 
-    with timer('TrainBestModel', logger):
+    with timer("TrainBestModel", logger):
         train_by_best_params()
+
 
 ### Define Function ############################################################
 def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     _df = df.copy()
-    _df['FamilySize'] = _df['SibSp'] + _df['Parch'] + 1
-    _df['Embarked'] = _df['Embarked'].map({'S': 0, 'C': 1, 'Q': 2})
-    _df['Sex'] = _df['Sex'].map({'male': 0, 'female': 1})
-    _df['IsAlone'] = 0
-    _df.loc[_df['FamilySize'] == 1, 'IsAlone'] = 1
-    _df.drop(['PassengerId', 'Name',  'Age', 'SibSp', 'Parch', 'Fare', 'Cabin', 'Ticket'], axis=1, inplace=True)
+    _df["FamilySize"] = _df["SibSp"] + _df["Parch"] + 1
+    _df["Embarked"] = _df["Embarked"].map({"S": 0, "C": 1, "Q": 2})
+    _df["Sex"] = _df["Sex"].map({"male": 0, "female": 1})
+    _df["IsAlone"] = 0
+    _df.loc[_df["FamilySize"] == 1, "IsAlone"] = 1
+    _df.drop(
+        ["PassengerId", "Name", "Age", "SibSp", "Parch", "Fare", "Cabin", "Ticket"],
+        axis=1,
+        inplace=True,
+    )
 
     return _df
+
 
 @hydra.main(config_path=f"{pj_dir}/src/config", config_name="config")
 def optimizer(config: DictConfig) -> np.float64:
@@ -75,7 +83,7 @@ def optimizer(config: DictConfig) -> np.float64:
         "verbose": 0,
         "early_stopping_rounds": config.model.callbacks.early_stopping_rounds,
         "eval_metric": config.model.callbacks.metric,
-        "eval_set": [(X, y)]
+        "eval_set": [(X, y)],
     }
 
     with timer("CrossValidScore", logger):
@@ -113,8 +121,8 @@ def optimizer(config: DictConfig) -> np.float64:
 
     writer.log_params_from_omegaconf_dict(hyperparams)
 
-    mean_scores = {f'mean_{k}'.replace('_test',''): v.mean() for k, v in scores.items()}
-    std_scores = {f'std_{k}'.replace('_test',''): v.std() for k, v in scores.items()}
+    mean_scores = {f"mean_{k}".replace("_test", ""): v.mean() for k, v in scores.items()}
+    std_scores = {f"std_{k}".replace("_test", ""): v.std() for k, v in scores.items()}
 
     [writer.log_metric(k, v) for k, v in mean_scores.items()]
     [writer.log_metric(k, v) for k, v in std_scores.items()]
@@ -147,18 +155,22 @@ def train_by_best_params() -> None:
     logger.info("fit_params:")
     logger.info(pformat(hyperparams))
 
-    (X_train, X_valid,
-     y_train, y_valid,) = train_test_split(
-         X, y,
-         test_size=config.common.test_size, random_state=config.common.seed,
-         shuffle=True, stratify=y
-     )
+    (X_train, X_valid, y_train, y_valid,) = train_test_split(
+        X,
+        y,
+        test_size=config.common.test_size,
+        random_state=config.common.seed,
+        shuffle=True,
+        stratify=y,
+    )
 
     lgb_train = lgb.Dataset(X_train, y_train)
     lgb_valid = lgb.Dataset(X_valid, y_valid)
 
     callbacks = [
-        lgb.early_stopping(stopping_rounds=config.model.callbacks.early_stopping_rounds, verbose=True),
+        lgb.early_stopping(
+            stopping_rounds=config.model.callbacks.early_stopping_rounds, verbose=True
+        ),
         lgb.log_evaluation(10),
     ]
 
@@ -219,6 +231,7 @@ def train_by_best_params() -> None:
 
     writer.set_terminated()
 
+
 ### Execute Process ############################################################
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

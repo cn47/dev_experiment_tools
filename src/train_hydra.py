@@ -11,15 +11,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
-from omegaconf import DictConfig, OmegaConf
-from sklearn.model_selection import (StratifiedKFold, cross_validate,
-                                     train_test_split)
-
 from logger import get_logger
 from mlflow_writer import MlflowWriter
+from omegaconf import DictConfig, OmegaConf
+from sklearn.model_selection import (
+    StratifiedKFold,
+    cross_validate,
+    train_test_split
+)
 from utils import rm_files, timer
 
-pj_dir = Path('/opt')
+pj_dir = Path("/opt")
 config = OmegaConf.load(f"{pj_dir}/src/config/config.yaml")
 
 mlflow_dir = pj_dir / config.mlflow.dir
@@ -32,29 +34,35 @@ logger = get_logger("TrainOptimizer", f"{pj_dir}/log/train.log")
 
 ### Define Process #############################################################
 def main():
-    with timer('Load&Preprocess Data'):
+    with timer("Load&Preprocess Data"):
         global X, y
         df_raw = pd.read_csv(pj_dir / "data/01_raw/train.csv")
         df_proc = preprocess(df_raw)
-        X, y = df_proc.drop('Survived', axis=1), df_proc['Survived']
+        X, y = df_proc.drop("Survived", axis=1), df_proc["Survived"]
         positive = np.count_nonzero(y)
         negative = len(y) - np.count_nonzero(y)
-        logger.info(f'positive: {positive} / negative: {negative}')
+        logger.info(f"positive: {positive} / negative: {negative}")
 
-    with timer('CrossValidHyperParamOptimizer'):
+    with timer("CrossValidHyperParamOptimizer"):
         optimizer()
+
 
 ### Define Function ############################################################
 def preprocess(df: pd.DataFrame) -> pd.DataFrame:
     _df = df.copy()
-    _df['FamilySize'] = _df['SibSp'] + _df['Parch'] + 1
-    _df['Embarked'] = _df['Embarked'].map({'S': 0, 'C': 1, 'Q': 2})
-    _df['Sex'] = _df['Sex'].map({'male': 0, 'female': 1})
-    _df['IsAlone'] = 0
-    _df.loc[_df['FamilySize'] == 1, 'IsAlone'] = 1
-    _df.drop(['PassengerId', 'Name',  'Age', 'SibSp', 'Parch', 'Fare', 'Cabin', 'Ticket'], axis=1, inplace=True)
+    _df["FamilySize"] = _df["SibSp"] + _df["Parch"] + 1
+    _df["Embarked"] = _df["Embarked"].map({"S": 0, "C": 1, "Q": 2})
+    _df["Sex"] = _df["Sex"].map({"male": 0, "female": 1})
+    _df["IsAlone"] = 0
+    _df.loc[_df["FamilySize"] == 1, "IsAlone"] = 1
+    _df.drop(
+        ["PassengerId", "Name", "Age", "SibSp", "Parch", "Fare", "Cabin", "Ticket"],
+        axis=1,
+        inplace=True,
+    )
 
     return _df
+
 
 @hydra.main(config_path=f"{pj_dir}/src/config", config_name="config")
 def optimizer(config: DictConfig) -> np.float64:
@@ -72,7 +80,7 @@ def optimizer(config: DictConfig) -> np.float64:
         "verbose": 0,
         "early_stopping_rounds": config.model.callbacks.early_stopping_rounds,
         "eval_metric": config.model.callbacks.metric,
-        "eval_set": [(X, y)]
+        "eval_set": [(X, y)],
     }
 
     with timer("CrossValidScore", logger):
@@ -87,6 +95,7 @@ def optimizer(config: DictConfig) -> np.float64:
 
     return np.mean(scores["test_average_precision"])
 
+
 ### Execute Process ############################################################
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

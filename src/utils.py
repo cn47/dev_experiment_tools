@@ -10,13 +10,13 @@ def rm_files(target_file: str) -> None:
     except OSError as e:
         pass
 
+
 @contextmanager
 def timer(name: str, logger=None):
     started_at = datetime.now()
     yield
-    elapsed = str(datetime.now() - started_at).split('.')[0]
+    elapsed = str(datetime.now() - started_at).split(".")[0]
     if logger:
         logger.info(f"[{name}] done in [{elapsed}]")
     else:
         print(f"[{name}] done in [{elapsed}]")
-
